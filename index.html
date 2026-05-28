@@ -12,6 +12,7 @@
     margin: 0; padding: 24px; background: #f5f6fa; color: #1f2329;
   }
   .container { max-width: 960px; margin: 0 auto; }
+  .container.fluid { max-width: none; }
   h1 { font-size: 22px; margin: 0 0 16px; }
   h2 { font-size: 16px; margin: 24px 0 10px; color: #2c3a52; }
   h2:first-child { margin-top: 0; }
@@ -292,7 +293,8 @@ function calc() {
 
 function scrollResultIntoView() {
   requestAnimationFrame(() => {
-    resultDiv.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    const card = resultDiv.closest('.card');
+    (card || resultDiv).scrollIntoView({ behavior: 'smooth', block: 'end' });
   });
 }
 
@@ -310,6 +312,21 @@ qTypeSel.addEventListener('change', syncNeedToMax);
 document.getElementById('calcBtn').addEventListener('click', calc);
 recompute();
 syncNeedToMax();
+
+// Web 端等比放大：以 960px 为基准，最大 1.6 倍
+function applyDesktopZoom() {
+  const container = document.querySelector('.container');
+  if (window.innerWidth <= 640) {
+    document.body.style.zoom = '';
+    container.classList.remove('fluid');
+    return;
+  }
+  const ratio = Math.min(window.innerWidth / 960, 1.6);
+  document.body.style.zoom = ratio;
+  container.classList.add('fluid');
+}
+applyDesktopZoom();
+window.addEventListener('resize', applyDesktopZoom);
 </script>
 
 </body>
