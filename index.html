@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>卡池抽数计算器</title>
 <style>
   * { box-sizing: border-box; }
@@ -19,11 +19,12 @@
     background: #fff; border-radius: 10px; padding: 20px; margin-bottom: 16px;
     box-shadow: 0 1px 4px rgba(0,0,0,0.06);
   }
-  table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-  th, td { padding: 10px 8px; text-align: left; border-bottom: 1px solid #eef0f4; font-size: 14px; word-break: break-word; }
+  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 10px 8px; text-align: left; border-bottom: 1px solid #eef0f4; font-size: 14px; white-space: nowrap; }
   th { background: #fafbfc; color: #51596c; font-weight: 600; }
   input[type=number] {
-    width: 100%; max-width: 110px; padding: 6px 8px; border: 1px solid #d8dce5; border-radius: 6px;
+    width: 100px; padding: 6px 8px; border: 1px solid #d8dce5; border-radius: 6px;
     font-size: 14px;
   }
   input[disabled] { background: #f5f6fa; color: #8b94a8; }
@@ -72,26 +73,9 @@
     .row > label > input { flex: 1; min-width: 0; max-width: 60%; }
     button { width: 100%; padding: 12px; font-size: 15px; }
 
-    /* 表格 → 纵向卡片，避免横向滚动 */
-    table, thead, tbody, tr, td { display: block; width: 100%; }
-    thead { display: none; }
-    tbody tr {
-      background: #fafbfc; border: 1px solid #eef0f4; border-radius: 8px;
-      padding: 8px 12px; margin-bottom: 10px;
-    }
-    tbody tr:last-child { margin-bottom: 0; }
-    tbody td {
-      border: none; padding: 6px 0;
-      display: flex; justify-content: space-between; align-items: center; gap: 10px;
-    }
-    tbody td::before {
-      content: attr(data-label);
-      font-size: 13px; color: #51596c; font-weight: 500;
-    }
-    tbody td.type-cell { padding-bottom: 8px; border-bottom: 1px dashed #eef0f4; margin-bottom: 4px; }
-    tbody td.type-cell::before { content: ""; }
-    tbody td.type-cell { justify-content: flex-start; }
-    input[type=number] { max-width: 110px; text-align: right; }
+    /* 表格保持原样，靠外层容器横向滑动 */
+    th, td { padding: 10px 10px; }
+    input[type=number] { width: 90px; }
   }
 </style>
 </head>
@@ -103,6 +87,7 @@
 
 <div class="card">
   <h2>① 卡池配置</h2>
+  <div class="table-wrap">
   <table id="poolTable">
     <thead>
       <tr>
@@ -139,6 +124,7 @@
       </tr>
     </tbody>
   </table>
+  </div>
   <div id="totalBar" class="totalbar good">总概率：100.00%</div>
   <div class="hint">规则：大/小/稀缺张数为 0 时，其概率自动并入"普通"。普通的总概率 = 100% − 其他三类总和。</div>
 </div>
