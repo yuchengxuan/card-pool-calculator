@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>卡池抽数计算器</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { min-height: 100vh; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+    margin: 0; padding: 24px; background: #f5f6fa; color: #1f2329;
+  }
+  .container { max-width: 960px; margin: 0 auto; }
+  h1 { font-size: 22px; margin: 0 0 16px; }
+  h2 { font-size: 16px; margin: 24px 0 10px; color: #2c3a52; }
+  h2:first-child { margin-top: 0; }
+  .card {
+    background: #fff; border-radius: 10px; padding: 20px; margin-bottom: 16px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  th, td { padding: 10px 8px; text-align: left; border-bottom: 1px solid #eef0f4; font-size: 14px; word-break: break-word; }
+  th { background: #fafbfc; color: #51596c; font-weight: 600; }
+  input[type=number] {
+    width: 100%; max-width: 110px; padding: 6px 8px; border: 1px solid #d8dce5; border-radius: 6px;
+    font-size: 14px;
+  }
+  input[disabled] { background: #f5f6fa; color: #8b94a8; }
+  .tag {
+    display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;
+    white-space: nowrap;
+  }
+  .tag-big { background: #fff1f0; color: #cf1322; }
+  .tag-small { background: #fff7e6; color: #d46b08; }
+  .tag-rare { background: #f0f5ff; color: #1d39c4; }
+  .tag-normal { background: #f6ffed; color: #389e0d; }
+  .row { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; }
+  .row > label { font-size: 14px; color: #51596c; display: flex; align-items: center; gap: 6px; }
+  select, .row input[type=number] {
+    padding: 6px 10px; border: 1px solid #d8dce5; border-radius: 6px; font-size: 14px;
+  }
+  button {
+    background: #2563eb; color: #fff; border: none; padding: 10px 20px;
+    border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600;
+  }
+  button:hover { background: #1d4ed8; }
+  button:active { background: #1e40af; }
+  .result {
+    background: #f0f7ff; border-left: 3px solid #2563eb; padding: 14px 16px;
+    margin-top: 12px; border-radius: 4px; font-size: 14px; line-height: 1.8;
+  }
+  .result b { color: #1d4ed8; font-size: 16px; }
+  .cost { color: #cf1322; font-weight: 700; }
+  .summary { font-size: 13px; color: #51596c; margin-top: 6px; }
+  .err { color: #cf1322; font-size: 13px; margin-top: 8px; }
+  .hint { font-size: 12px; color: #8b94a8; margin-top: 4px; }
+  .totalbar {
+    display: flex; justify-content: space-between; padding: 10px 12px;
+    background: #fafbfc; border-radius: 6px; margin-top: 10px; font-size: 13px;
+  }
+  .totalbar.bad { background: #fff1f0; color: #cf1322; }
+  .totalbar.good { background: #f6ffed; color: #389e0d; }
+
+  @media (max-width: 640px) {
+    body { padding: 12px; }
+    h1 { font-size: 20px; }
+    .card { padding: 14px; border-radius: 12px; }
+    .row { gap: 10px; }
+    .row > label { width: 100%; justify-content: space-between; }
+    .row > label > select,
+    .row > label > input { flex: 1; min-width: 0; max-width: 60%; }
+    button { width: 100%; padding: 12px; font-size: 15px; }
+
+    /* 表格 → 纵向卡片，避免横向滚动 */
+    table, thead, tbody, tr, td { display: block; width: 100%; }
+    thead { display: none; }
+    tbody tr {
+      background: #fafbfc; border: 1px solid #eef0f4; border-radius: 8px;
+      padding: 8px 12px; margin-bottom: 10px;
+    }
+    tbody tr:last-child { margin-bottom: 0; }
+    tbody td {
+      border: none; padding: 6px 0;
+      display: flex; justify-content: space-between; align-items: center; gap: 10px;
+    }
+    tbody td::before {
+      content: attr(data-label);
+      font-size: 13px; color: #51596c; font-weight: 500;
+    }
+    tbody td.type-cell { padding-bottom: 8px; border-bottom: 1px dashed #eef0f4; margin-bottom: 4px; }
+    tbody td.type-cell::before { content: ""; }
+    tbody td.type-cell { justify-content: flex-start; }
+    input[type=number] { max-width: 110px; text-align: right; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+<h1>卡池抽数期望计算器</h1>
+
+<div class="card">
+  <h2>① 卡池配置</h2>
+  <table id="poolTable">
+    <thead>
+      <tr>
+        <th>类型</th>
+        <th>该类型总概率(%)</th>
+        <th>该类型张数</th>
+        <th>每张实际概率(%)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr data-type="big">
+        <td class="type-cell"><span class="tag tag-big">大隐藏</span></td>
+        <td data-label="该类型总概率(%)"><input type="number" class="prob" value="0.5" step="0.1" min="0"></td>
+        <td data-label="该类型张数"><input type="number" class="count" value="1" step="1" min="0"></td>
+        <td data-label="每张实际概率(%)" class="per">—</td>
+      </tr>
+      <tr data-type="small">
+        <td class="type-cell"><span class="tag tag-small">小隐藏</span></td>
+        <td data-label="该类型总概率(%)"><input type="number" class="prob" value="4.5" step="0.1" min="0"></td>
+        <td data-label="该类型张数"><input type="number" class="count" value="1" step="1" min="0"></td>
+        <td data-label="每张实际概率(%)" class="per">—</td>
+      </tr>
+      <tr data-type="rare">
+        <td class="type-cell"><span class="tag tag-rare">稀缺</span></td>
+        <td data-label="该类型总概率(%)"><input type="number" class="prob" value="9" step="0.1" min="0"></td>
+        <td data-label="该类型张数"><input type="number" class="count" value="1" step="1" min="0"></td>
+        <td data-label="每张实际概率(%)" class="per">—</td>
+      </tr>
+      <tr data-type="normal">
+        <td class="type-cell"><span class="tag tag-normal">普通</span></td>
+        <td data-label="该类型总概率(%)"><input type="number" class="prob normal-prob" value="86" step="0.1" min="0" disabled></td>
+        <td data-label="该类型张数"><input type="number" class="count" value="6" step="1" min="1"></td>
+        <td data-label="每张实际概率(%)" class="per">—</td>
+      </tr>
+    </tbody>
+  </table>
+  <div id="totalBar" class="totalbar good">总概率：100.00%</div>
+  <div class="hint">规则：大/小/稀缺张数为 0 时，其概率自动并入"普通"。普通的总概率 = 100% − 其他三类总和。</div>
+</div>
+
+<div class="card">
+  <h2>② 计算抽数期望</h2>
+  <div class="row">
+    <label>类型：
+      <select id="qType">
+        <option value="big" selected>大隐藏</option>
+        <option value="small">小隐藏</option>
+        <option value="rare">稀缺</option>
+        <option value="normal">普通</option>
+      </select>
+    </label>
+    <label>需要抽到张数：
+      <input type="number" id="qNeed" value="1" min="1" step="1">
+    </label>
+    <label>要求：
+      <select id="qMode">
+        <option value="any">任意（可重复）</option>
+        <option value="distinct" selected>不同（去重集齐）</option>
+      </select>
+    </label>
+    <button id="calcBtn">计算</button>
+  </div>
+  <div id="result"></div>
+  <div class="hint">说明："任意"按几何分布算总抽数；"不同"按优惠券收集问题（不等概率版）算期望。1 抽 = 9.9 元。</div>
+</div>
+
+</div>
+
+<script>
+const PRICE_PER_DRAW = 9.9;
+const rows = document.querySelectorAll('#poolTable tbody tr');
+const totalBar = document.getElementById('totalBar');
+const qTypeSel = document.getElementById('qType');
+const qNeedInput = document.getElementById('qNeed');
+const qModeSel = document.getElementById('qMode');
+const resultDiv = document.getElementById('result');
+
+function getConfig() {
+  const cfg = {};
+  rows.forEach(r => {
+    const t = r.dataset.type;
+    cfg[t] = {
+      prob: parseFloat(r.querySelector('.prob').value) || 0,
+      count: parseInt(r.querySelector('.count').value) || 0,
+    };
+  });
+  return cfg;
+}
+
+function recompute() {
+  const cfg = getConfig();
+  let normalProb = 100;
+  ['big','small','rare'].forEach(t => {
+    if (cfg[t].count > 0) normalProb -= cfg[t].prob;
+  });
+  cfg.normal.prob = normalProb;
+  document.querySelector('tr[data-type=normal] .normal-prob').value = normalProb.toFixed(2);
+
+  rows.forEach(r => {
+    const t = r.dataset.type;
+    const c = cfg[t].count, p = cfg[t].prob;
+    const per = c > 0 ? (p / c) : 0;
+    r.querySelector('.per').textContent = c > 0 ? per.toFixed(2) + '%' : '—（未启用）';
+  });
+
+  let activeSum = 0;
+  Object.keys(cfg).forEach(t => { if (cfg[t].count > 0) activeSum += cfg[t].prob; });
+  const diff = Math.abs(activeSum - 100);
+  if (diff < 0.01) {
+    totalBar.className = 'totalbar good';
+    totalBar.textContent = '生效总概率：' + activeSum.toFixed(2) + '%';
+  } else if (normalProb < 0) {
+    totalBar.className = 'totalbar bad';
+    totalBar.textContent = '其他类型概率之和超过 100%（普通已为负），请调整。当前：' + activeSum.toFixed(2) + '%';
+  } else {
+    totalBar.className = 'totalbar bad';
+    totalBar.textContent = '总概率：' + activeSum.toFixed(2) + '%（应为 100%）';
+  }
+
+  Array.from(qTypeSel.options).forEach(opt => {
+    const t = opt.value;
+    const disabled = cfg[t].count <= 0;
+    opt.disabled = disabled;
+    if (disabled && qTypeSel.value === t) qTypeSel.value = 'normal';
+  });
+  return cfg;
+}
+
+function syncNeedToMax() {
+  const cfg = getConfig();
+  const t = qTypeSel.value;
+  const c = cfg[t].count;
+  if (c > 0) {
+    qNeedInput.value = c;
+    qNeedInput.max = c;
+  }
+}
+
+function calc() {
+  const cfg = recompute();
+  const t = qTypeSel.value;
+  const need = parseInt(qNeedInput.value);
+  const mode = qModeSel.value;
+
+  resultDiv.innerHTML = '';
+  if (cfg[t].count <= 0) {
+    resultDiv.innerHTML = '<div class="err">该类型张数为 0，请先在卡池配置里启用。</div>';
+    scrollResultIntoView();
+    return;
+  }
+  if (!need || need < 1) {
+    resultDiv.innerHTML = '<div class="err">需要抽到张数必须 ≥ 1。</div>';
+    scrollResultIntoView();
+    return;
+  }
+  if (mode === 'distinct' && need > cfg[t].count) {
+    resultDiv.innerHTML = '<div class="err">"不同"模式下，目标张数不能大于该类型总张数（' + cfg[t].count + '）。</div>';
+    scrollResultIntoView();
+    return;
+  }
+
+  const totalProb = cfg[t].prob / 100;
+  const perProb = totalProb / cfg[t].count;
+
+  if (mode === 'any') {
+    const expected = need / totalProb;
+    const cost = expected * PRICE_PER_DRAW;
+    resultDiv.innerHTML =
+      '<div class="result">' +
+        '期望抽数：<b>' + expected.toFixed(2) + ' 抽</b>' +
+        '　所需金额：<span class="cost">¥' + cost.toFixed(2) + '</span>' +
+        '<div class="summary">' +
+          '命中"' + typeName(t) + '"任意一张的单抽概率 = ' + (totalProb*100).toFixed(2) + '%；' +
+          '需要 ' + need + ' 张 → ' + need + ' ÷ ' + (totalProb*100).toFixed(2) + '% ≈ ' + expected.toFixed(2) + ' 抽。<br>' +
+          '金额 = ' + expected.toFixed(2) + ' × 9.9 ≈ ¥' + cost.toFixed(2) + '。' +
+        '</div>' +
+      '</div>';
+  } else {
+    const count = cfg[t].count;
+    let neededTypeCards = 0;
+    for (let k = 0; k < need; k++) {
+      neededTypeCards += count / (count - k);
+    }
+    const expected = neededTypeCards / totalProb;
+    const cost = expected * PRICE_PER_DRAW;
+    resultDiv.innerHTML =
+      '<div class="result">' +
+        '期望抽数：<b>' + expected.toFixed(2) + ' 抽</b>' +
+        '　所需金额：<span class="cost">¥' + cost.toFixed(2) + '</span>' +
+        '<div class="summary">' +
+          '该类型共 ' + count + ' 张，需集齐 ' + need + ' 张不同的。<br>' +
+          '需要的"该类型卡"张数 = ' + count + '×(1/' + count + ' + 1/' + (count-1) +
+            (need >= 3 ? ' + … + 1/' + (count - need + 1) : '') + ') ≈ ' + neededTypeCards.toFixed(2) + ' 张。<br>' +
+          '换算成抽数 = ' + neededTypeCards.toFixed(2) + ' ÷ ' + (totalProb*100).toFixed(2) + '% ≈ ' + expected.toFixed(2) + ' 抽。<br>' +
+          '金额 = ' + expected.toFixed(2) + ' × 9.9 ≈ ¥' + cost.toFixed(2) + '。' +
+        '</div>' +
+      '</div>';
+  }
+  scrollResultIntoView();
+}
+
+function scrollResultIntoView() {
+  requestAnimationFrame(() => {
+    resultDiv.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  });
+}
+
+function typeName(t) {
+  return { big:'大隐藏', small:'小隐藏', rare:'稀缺', normal:'普通' }[t];
+}
+
+rows.forEach(r => {
+  r.querySelectorAll('input').forEach(i => i.addEventListener('input', () => {
+    recompute();
+    syncNeedToMax();
+  }));
+});
+qTypeSel.addEventListener('change', syncNeedToMax);
+document.getElementById('calcBtn').addEventListener('click', calc);
+recompute();
+syncNeedToMax();
+</script>
+
+</body>
+</html>
